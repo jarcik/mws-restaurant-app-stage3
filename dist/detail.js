@@ -394,4 +394,21 @@ class DBHelper {
   static imageAltText(restaurant) {
     return restaurant.name + ' restaurant in ' + restaurant.neighborhood + ' offers ' + restaurant.cuisine_type + ' cuisine type';
   }
+
+  /**
+   * Update the favorite status of the restaurant. Based on id of restaurant and tru/false value of favorite.
+   */
+  static updateFavStatus(id, isFav) {
+    fetch(DBHelper.API_URL+'/'+id+'/'+'?is_favorite='+isFav,{method:'PUT'})
+    .then(() => {
+      DBHelper.dbPromise.then(db => {        
+        const tx = db.transaction(dbName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        store.get(id).then(restaurant => {
+          restaurant.is_favorite = isFav;
+          store.put(restaurant);
+        });
+      })
+    })
+  }
 }

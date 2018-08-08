@@ -153,6 +153,19 @@ createRestaurantHTML = (restaurant) => {
   name.innerHTML = restaurant.name;
   div2.append(name);
 
+  const favButton = document.createElement('button');
+  favButton.type = 'button';
+  favButton.classList.add('favButton');
+  favButton.innerHTML = '❤';
+  favButton.onclick = () => {
+    let isFav = !restaurant.is_favorite;
+    DBHelper.updateFavStatus(restaurant.id, isFav);
+    restaurant.is_favorite = isFav;
+    changeFavButton(favButton, restaurant.is_favorite);
+  };  
+  changeFavButton(favButton, restaurant.is_favorite);
+  div2.append(favButton);
+
   const neighborhood = document.createElement('p');
   neighborhood.innerHTML = restaurant.neighborhood;
   div2.append(neighborhood);
@@ -177,6 +190,21 @@ createRestaurantHTML = (restaurant) => {
 
   div.append(div2);
   return div
+}
+
+/**
+ * Change attributes of favorite buttons when user clicks it
+ */
+changeFavButton = (element, isFav) => {
+  if(isFav) {
+    element.setAttribute('aria-label', 'Set as not favorite restaurant.')
+    element.classList.add('fav');
+    element.classList.remove('notFav');
+  } else {
+    element.setAttribute('aria-label', 'Set as favorite restaurant.')
+    element.classList.add('notFav');
+    element.classList.remove('fav');
+  }
 }
 
 /**
@@ -434,5 +462,22 @@ class DBHelper {
 
   static imageAltText(restaurant) {
     return restaurant.name + ' restaurant in ' + restaurant.neighborhood + ' offers ' + restaurant.cuisine_type + ' cuisine type';
+  }
+
+  /**
+   * Update the favorite status of the restaurant. Based on id of restaurant and tru/false value of favorite.
+   */
+  static updateFavStatus(id, isFav) {
+    fetch(DBHelper.API_URL+'/'+id+'/'+'?is_favorite='+isFav,{method:'PUT'})
+    .then(() => {
+      DBHelper.dbPromise.then(db => {        
+        const tx = db.transaction(dbName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        store.get(id).then(restaurant => {
+          restaurant.is_favorite = isFav;
+          store.put(restaurant);
+        });
+      })
+    })
   }
 }

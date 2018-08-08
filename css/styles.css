@@ -181,7 +181,7 @@ nav h1 a {
   margin: 0;
   font-size: 11pt;
 }
-#restaurants-list > div a, button#ham_icon {
+#restaurants-list > div a, button#ham_icon, button.favButton {
   background-color: #5e420f;
   border-bottom: 3px solid #eee;
   color: #fff;
@@ -192,4 +192,16 @@ nav h1 a {
   text-align: center;
   text-decoration: none;
   text-transform: uppercase;
+}
+
+#restaurants-list > div button.favButton {
+  border-top:none;
+  border-left:none;
+  border-right:none;
+  font-size: 15pt;
+}
+
+button.favButton.fav {
+  color: red;  
+  text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
 }

@@ -153,6 +153,19 @@ createRestaurantHTML = (restaurant) => {
   name.innerHTML = restaurant.name;
   div2.append(name);
 
+  const favButton = document.createElement('button');
+  favButton.type = 'button';
+  favButton.classList.add('favButton');
+  favButton.innerHTML = '❤';
+  favButton.onclick = () => {
+    let isFav = !restaurant.is_favorite;
+    DBHelper.updateFavStatus(restaurant.id, isFav);
+    restaurant.is_favorite = isFav;
+    changeFavButton(favButton, restaurant.is_favorite);
+  };  
+  changeFavButton(favButton, restaurant.is_favorite);
+  div2.append(favButton);
+
   const neighborhood = document.createElement('p');
   neighborhood.innerHTML = restaurant.neighborhood;
   div2.append(neighborhood);
@@ -177,6 +190,21 @@ createRestaurantHTML = (restaurant) => {
 
   div.append(div2);
   return div
+}
+
+/**
+ * Change attributes of favorite buttons when user clicks it
+ */
+changeFavButton = (element, isFav) => {
+  if(isFav) {
+    element.setAttribute('aria-label', 'Set as not favorite restaurant.')
+    element.classList.add('fav');
+    element.classList.remove('notFav');
+  } else {
+    element.setAttribute('aria-label', 'Set as favorite restaurant.')
+    element.classList.add('notFav');
+    element.classList.remove('fav');
+  }
 }
 
 /**

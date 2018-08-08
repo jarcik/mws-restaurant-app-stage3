@@ -1,7 +1,7 @@
 //start of the cache name (used even in comparing in deleting cache)
 const cacheNameStartWith = 'restaurant-reviews-cache-';
 //name of a cache - as a constant
-const cacheNameFullStatic = cacheNameStartWith+'v5';
+const cacheNameFullStatic = cacheNameStartWith+'v9';
 
 //install sw
 self.addEventListener('install', event => {
