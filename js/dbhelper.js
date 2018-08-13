@@ -2,11 +2,22 @@
 const dbName = 'restaurants';
 //name of the store name with restaurants
 const storeName = 'restaurants';
+//name of the store name with reviews
+const reviewsStoreName = 'reviews';
 
 /**
  * Common database helper functions.
  */
 class DBHelper {
+
+  /**
+   * API URL
+   */
+  static get API_URL_BASE() {
+    const port = 1337 // Change this to YOUR server port
+    //url to server with data
+    return `http://127.0.0.1:${port}/`;
+  }
 
   /**
    * API URL
@@ -245,5 +256,80 @@ class DBHelper {
         });
       })
     })
+  }
+
+  /**
+   * Fetch reviews to the restaurant
+   */
+  static fetchReviewsRestaurantId(id) {
+    return fetch(DBHelper.API_URL_BASE+'reviews/?restaurant_id='+id)
+    .then((response) => {
+      response.json();
+    })
+    .then((reviews) => {
+      DBHelper.dbPromise.then(db => {
+        const tx = db.transaction(dbName, 'readwrite');
+        const store = tx.objectStore(reviewsStoreName);
+        if(Array.isArray(reviews)) {
+          reviews.forEach((review) => {
+            store.put(review);
+          });
+        } else {
+          store.put(reviews);
+        }
+      });
+      return Promise.resolve(reviews);
+    }).catch((error) => {
+      return DBHelper.dbPromise.then(db => {        
+        const tx = db.transaction(dbName, 'readwrite');
+        const store = tx.objectStore(reviewsStoreName);
+        const indexId = store.index(dbName);
+        return indexId.getAll(id);
+      }).then((storedREviews) => {
+        return Promise.resolve(storedREviews);
+      })
+    });
+  }
+
+  /**
+   * Reporting review to server and db
+   */
+  static addReviewToServer(review) {
+    if(navigator.onLine) {
+      DBHelper.onlineAddReview(review);
+    } else {
+      DBHelper.offlineAddReview(review);
+    }
+  }
+
+  /**
+   * Processing review, when the user is offline
+   */
+  static offlineAddReview(review) {
+    const offline_review_key = 'offline_review';
+    localStorage.setItem(offline_review_key, JSON.stringify(review));
+    window.addEventListener('online', (event) => {
+      let offline_review = JSON.parse(localStorage.getItem(offline_review_key));
+      if(!offline_review) {
+        DBHelper.addReviewToServer(offline_review);
+        localStorage.removeItem(offline_review_key);
+      }
+    });
+  }
+  
+  /**
+   * Processing review, when the user is offline
+   */
+  static onlineAddReview(review) {
+    fetch(DBHelper.API_URL_BASE + 'reviews', 
+    {
+      method:'POST', 
+      headers: new Headers({'Content-Type': 'application/json'}), 
+      body: JSON.stringify(review)
+    }).then((response) => {
+      return response;
+    }).catch((error) => {
+      console.log('error in posting online review');
+    });
   }
 }

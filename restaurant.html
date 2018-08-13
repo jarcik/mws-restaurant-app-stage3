@@ -51,8 +51,53 @@
       <table id="restaurant-hours" tabindex="0"></table>
     </section>
     <!-- end restaurant -->
-    <!-- Beginning reviews -->
+    <!-- Beginning reviews -->    
     <section id="reviews-container">
+
+      
+      <!-- Form to add review -->
+      <section id="review-form">
+        <h3>Add review</h3>
+        <form id="add-review-form">
+          <!-- autor -->
+          <div>
+            <label for="reviewAuthor">Author</label>
+            <input type="text" id="reviewAuthor" name="author" required />
+          </div>
+          
+          <!-- rating, inspired by https://codepen.io/jamesbarnett/pen/vlpkh -->
+          <div>
+            <label for="rating">Rating</label>
+            <fieldset class="rating" id="rating">
+              <input type="radio" id="star5" name="rating" value="5" /><label class="full" for="star5" title="5 stars"></label>
+              <input type="radio" id="star4" name="rating" value="4" /><label class="full" for="star4" title="4 stars"></label>
+              <input type="radio" id="star3" name="rating" value="3" /><label class="full" for="star3" title="3 stars"></label>
+              <input type="radio" id="star2" name="rating" value="2" /><label class="full" for="star2" title="2 stars"></label>
+              <input type="radio" id="star1" name="rating" value="1" /><label class="full" for="star1" title="1 star"></label>
+            </fieldset>
+            <div class="clear"></div>
+          </div>
+
+          <!-- comment -->
+          <div>            
+              <label for="comment">Comment</label>
+              <textarea rows="5" cols="50" name="comment" id="comment" required></textarea>
+          </div>
+
+          <!-- errors -->
+          <div id="errorSection">
+            <ul id="errors"></ul>
+          </div>
+
+          <!-- submit -->
+          <div>
+            <button type="button" name="submit" onclick="addReview()" class="addReview">Add review</button>
+          </div>
+        </form>
+      </section>
+      <!-- End of review form -->
+  
+
       <ul id="reviews-list" tabindex="0"></ul>
     </section>
     <div class="clear"></div>
@@ -71,8 +116,10 @@
   <script type="application/javascript" charset="utf-8" src="dist/vendors.min.js"></script>
   <!-- app -->
   <script type="application/javascript" charset="utf-8" src="dist/detail.min.js"></script>
+  <!-- <script type="application/javascript" charset="utf-8" src="js/restaurant_info.js"></script>
+  <script type="application/javascript" charset="utf-8" src="js/dbhelper.js"></script> -->
   <!-- Google Maps -->
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGD6qFycTQJpAS4cJc4q-_AqSeYsuoeL0&libraries=places&callback=initMap"></script>
+  <!-- <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAGD6qFycTQJpAS4cJc4q-_AqSeYsuoeL0&libraries=places&callback=initMap"></script> -->
   <!-- End scripts -->
 
 </body>

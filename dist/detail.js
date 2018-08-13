@@ -1,5 +1,6 @@
 let restaurant;
 var map;
+let id;
 
 /**
  * Initialize Google map, called from HTML.
@@ -21,6 +22,19 @@ window.initMap = () => {
 }
 
 /**
+ * Fetch neighborhoods and cuisines as soon as the page is loaded.
+ */
+document.addEventListener('DOMContentLoaded', (event) => {
+  fetchRestaurantFromURL((error, restaurant) => {
+    if (error) { // Got an error!
+      console.error(error);
+    } else {
+      fillBreadcrumb();
+    }
+  });
+});
+
+/**
  * Get current restaurant from page URL.
  */
 fetchRestaurantFromURL = (callback) => {
@@ -35,6 +49,7 @@ fetchRestaurantFromURL = (callback) => {
   } else {
     DBHelper.fetchRestaurantById(id, (error, restaurant) => {
       self.restaurant = restaurant;
+      self.id = id;
       if (!restaurant) {
         console.error(error);
         return;
@@ -62,7 +77,8 @@ fillRestaurantHTML = (restaurant = self.restaurant) => {
 
   const cuisine = document.getElementById('restaurant-cuisine');
   cuisine.innerHTML = restaurant.cuisine_type;
-
+  //fill reviews
+  fillRestaurantReviews(restaurant.id);
   // fill operating hours
   if (restaurant.operating_hours) {
     fillRestaurantHoursHTML();
@@ -103,6 +119,7 @@ fillReviewsHTML = (reviews = self.restaurant.reviews) => {
   if (!reviews) {
     const noReviews = document.createElement('p');
     noReviews.innerHTML = 'No reviews yet!';
+    noReviews.id = 'noReviews';
     container.appendChild(noReviews);
     return;
   }
@@ -161,17 +178,103 @@ getParameterByName = (name, url) => {
   if (!results[2])
     return '';
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
+ }
+
+ /**
+  * Fetch and Fill restaurant reviews from server
+  */
+ fillRestaurantReviews = (id) => {
+  
+ }
+
+/**
+ * ADd review to the restaurant by the visitor
+ */
+ addReview = () => {
+  let id = self.id;
+  let author = document.getElementById('reviewAuthor');
+  let comment = document.getElementById('comment');
+  let rating = 0;
+  for(let i = 1; i <= 5; i++) {
+    let rationRadio = document.getElementById('star'+i);
+    if(rationRadio && rationRadio.checked) {
+      rating = i;
+    }
+  }
+  let errors = document.getElementById('errors');
+  let returnErrors = false;
+  if(!author || !author.value) {
+    const li = document.createElement('li');
+    li.innerHTML = 'Fill your name';
+    errors.appendChild(li);
+    returnErrors = true;
+  }  
+  if(!comment || !comment.value) {
+    const li = document.createElement('li');
+    li.innerHTML = 'Fill your comment';
+    errors.appendChild(li);
+    returnErrors = true;
+  }
+  if(!rating) {
+    const li = document.createElement('li');
+    li.innerHTML = 'Fill your rating';
+    errors.appendChild(li);
+    returnErrors = true;
+  }
+  if(returnErrors) {
+    let errorH = document.createElement('h4');
+    errorH.innerHTML = 'Errors in the form:';
+    errorH.id = 'errorHead';
+    let errorSection = document.getElementById('errorSection');
+    errorSection.appendChild(errorH);
+    return;
+  }
+  let errorHead = document.getElementById('errorHead');
+  if(errorHead) {
+    errorHead.parentNode.removeChild(errorHead);
+  }
+  let review = {restaurant_id: id, name: author.value, comments: comment.value, rating: rating, };
+  console.log(review);
+
+  DBHelper.addReviewToServer(review);
+  addReviewToHtml(review);
+
+  document.getElementById('add-review-form').reset();
 }
 
+/**
+ * adding review wchich was proceed for errors and to backend
+ */
+addReviewToHtml = (review) => {
+  if(!review) return;  
+  let noREviews = document.getElementById('noReviews');
+  if (noREviews) {
+    noREviews.parentNode.removeChild(noREviews);
+  }
+  review.createdAt = new Date();
+  let reviewList = document.getElementById('reviews-list');
+  reviewList.appendChild(createReviewHTML(review));
+}
 //name of the database name
 const dbName = 'restaurants';
 //name of the store name with restaurants
 const storeName = 'restaurants';
+//name of the store name with reviews
+const reviewsStoreName = 'reviews';
 
 /**
  * Common database helper functions.
  */
 class DBHelper {
+
+  /**
+   * API URL
+   */
+  static get API_URL_BASE() {
+    const port = 1337 // Change this to YOUR server port
+    //url to server with data
+    return `http://127.0.0.1:${port}/`;
+  }
 
   /**
    * API URL
@@ -410,5 +513,80 @@ class DBHelper {
         });
       })
     })
+  }
+
+  /**
+   * Fetch reviews to the restaurant
+   */
+  static fetchReviewsRestaurantId(id) {
+    return fetch(DBHelper.API_URL_BASE+'reviews/?restaurant_id='+id)
+    .then((response) => {
+      response.json();
+    })
+    .then((reviews) => {
+      DBHelper.dbPromise.then(db => {
+        const tx = db.transaction(dbName, 'readwrite');
+        const store = tx.objectStore(reviewsStoreName);
+        if(Array.isArray(reviews)) {
+          reviews.forEach((review) => {
+            store.put(review);
+          });
+        } else {
+          store.put(reviews);
+        }
+      });
+      return Promise.resolve(reviews);
+    }).catch((error) => {
+      return DBHelper.dbPromise.then(db => {        
+        const tx = db.transaction(dbName, 'readwrite');
+        const store = tx.objectStore(reviewsStoreName);
+        const indexId = store.index(dbName);
+        return indexId.getAll(id);
+      }).then((storedREviews) => {
+        return Promise.resolve(storedREviews);
+      })
+    });
+  }
+
+  /**
+   * Reporting review to server and db
+   */
+  static addReviewToServer(review) {
+    if(navigator.onLine) {
+      DBHelper.onlineAddReview(review);
+    } else {
+      DBHelper.offlineAddReview(review);
+    }
+  }
+
+  /**
+   * Processing review, when the user is offline
+   */
+  static offlineAddReview(review) {
+    const offline_review_key = 'offline_review';
+    localStorage.setItem(offline_review_key, JSON.stringify(review));
+    window.addEventListener('online', (event) => {
+      let offline_review = JSON.parse(localStorage.getItem(offline_review_key));
+      if(!offline_review) {
+        DBHelper.addReviewToServer(offline_review);
+        localStorage.removeItem(offline_review_key);
+      }
+    });
+  }
+  
+  /**
+   * Processing review, when the user is offline
+   */
+  static onlineAddReview(review) {
+    fetch(DBHelper.API_URL_BASE + 'reviews', 
+    {
+      method:'POST', 
+      headers: new Headers({'Content-Type': 'application/json'}), 
+      body: JSON.stringify(review)
+    }).then((response) => {
+      return response;
+    }).catch((error) => {
+      console.log('error in posting online review');
+    });
   }
 }

@@ -1,5 +1,6 @@
 let restaurant;
 var map;
+let id;
 
 /**
  * Initialize Google map, called from HTML.
@@ -21,6 +22,19 @@ window.initMap = () => {
 }
 
 /**
+ * Fetch neighborhoods and cuisines as soon as the page is loaded.
+ */
+document.addEventListener('DOMContentLoaded', (event) => {
+  fetchRestaurantFromURL((error, restaurant) => {
+    if (error) { // Got an error!
+      console.error(error);
+    } else {
+      fillBreadcrumb();
+    }
+  });
+});
+
+/**
  * Get current restaurant from page URL.
  */
 fetchRestaurantFromURL = (callback) => {
@@ -35,6 +49,7 @@ fetchRestaurantFromURL = (callback) => {
   } else {
     DBHelper.fetchRestaurantById(id, (error, restaurant) => {
       self.restaurant = restaurant;
+      self.id = id;
       if (!restaurant) {
         console.error(error);
         return;
@@ -62,7 +77,8 @@ fillRestaurantHTML = (restaurant = self.restaurant) => {
 
   const cuisine = document.getElementById('restaurant-cuisine');
   cuisine.innerHTML = restaurant.cuisine_type;
-
+  //fill reviews
+  fillRestaurantReviews(restaurant.id);
   // fill operating hours
   if (restaurant.operating_hours) {
     fillRestaurantHoursHTML();
@@ -103,6 +119,7 @@ fillReviewsHTML = (reviews = self.restaurant.reviews) => {
   if (!reviews) {
     const noReviews = document.createElement('p');
     noReviews.innerHTML = 'No reviews yet!';
+    noReviews.id = 'noReviews';
     container.appendChild(noReviews);
     return;
   }
@@ -161,4 +178,80 @@ getParameterByName = (name, url) => {
   if (!results[2])
     return '';
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
+ }
+
+ /**
+  * Fetch and Fill restaurant reviews from server
+  */
+ fillRestaurantReviews = (id) => {
+  
+ }
+
+/**
+ * ADd review to the restaurant by the visitor
+ */
+ addReview = () => {
+  let id = self.id;
+  let author = document.getElementById('reviewAuthor');
+  let comment = document.getElementById('comment');
+  let rating = 0;
+  for(let i = 1; i <= 5; i++) {
+    let rationRadio = document.getElementById('star'+i);
+    if(rationRadio && rationRadio.checked) {
+      rating = i;
+    }
+  }
+  let errors = document.getElementById('errors');
+  let returnErrors = false;
+  if(!author || !author.value) {
+    const li = document.createElement('li');
+    li.innerHTML = 'Fill your name';
+    errors.appendChild(li);
+    returnErrors = true;
+  }  
+  if(!comment || !comment.value) {
+    const li = document.createElement('li');
+    li.innerHTML = 'Fill your comment';
+    errors.appendChild(li);
+    returnErrors = true;
+  }
+  if(!rating) {
+    const li = document.createElement('li');
+    li.innerHTML = 'Fill your rating';
+    errors.appendChild(li);
+    returnErrors = true;
+  }
+  if(returnErrors) {
+    let errorH = document.createElement('h4');
+    errorH.innerHTML = 'Errors in the form:';
+    errorH.id = 'errorHead';
+    let errorSection = document.getElementById('errorSection');
+    errorSection.appendChild(errorH);
+    return;
+  }
+  let errorHead = document.getElementById('errorHead');
+  if(errorHead) {
+    errorHead.parentNode.removeChild(errorHead);
+  }
+  let review = {restaurant_id: id, name: author.value, comments: comment.value, rating: rating, };
+  console.log(review);
+
+  DBHelper.addReviewToServer(review);
+  addReviewToHtml(review);
+
+  document.getElementById('add-review-form').reset();
+}
+
+/**
+ * adding review wchich was proceed for errors and to backend
+ */
+addReviewToHtml = (review) => {
+  if(!review) return;  
+  let noREviews = document.getElementById('noReviews');
+  if (noREviews) {
+    noREviews.parentNode.removeChild(noREviews);
+  }
+  review.createdAt = new Date();
+  let reviewList = document.getElementById('reviews-list');
+  reviewList.appendChild(createReviewHTML(review));
 }

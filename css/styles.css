@@ -181,7 +181,7 @@ nav h1 a {
   margin: 0;
   font-size: 11pt;
 }
-#restaurants-list > div a, button#ham_icon, button.favButton {
+#restaurants-list > div a, button#ham_icon, button.favButton, button.addReview {
   background-color: #5e420f;
   border-bottom: 3px solid #eee;
   color: #fff;
