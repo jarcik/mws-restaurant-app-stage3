@@ -110,38 +110,45 @@ fillRestaurantHoursHTML = (operatingHours = self.restaurant.operating_hours) => 
 /**
  * Create all reviews HTML and add them to the webpage.
  */
-fillReviewsHTML = (reviews = self.restaurant.reviews) => {
-  const container = document.getElementById('reviews-container');
-  const title = document.createElement('h3');
-  title.innerHTML = 'Reviews';
-  container.appendChild(title);
-
-  if (!reviews) {
-    const noReviews = document.createElement('p');
-    noReviews.innerHTML = 'No reviews yet!';
-    noReviews.id = 'noReviews';
-    container.appendChild(noReviews);
-    return;
-  }
-  const ul = document.getElementById('reviews-list');
-  reviews.forEach(review => {
-    ul.appendChild(createReviewHTML(review));
+fillReviewsHTML = () => {
+  DBHelper.fetchReviewsRestaurantId(self.restaurant.id)
+  .then((reviews) => {
+    const container = document.getElementById('reviews-container');
+    const title = document.createElement('h3');
+    title.innerHTML = 'Reviews';
+    container.appendChild(title);
+  
+    if (!reviews) {
+      const noReviews = document.createElement('p');
+      noReviews.innerHTML = 'No reviews yet!';
+      noReviews.id = 'noReviews';
+      container.appendChild(noReviews);
+      return;
+    }
+    const ul = document.getElementById('reviews-list');
+    reviews.forEach(review => {
+      ul.appendChild(createReviewHTML(review, false));
+    });
+    container.appendChild(ul);
+  })
+  .catch((error) => {
+    console.log('error in fetching reviews');
   });
-  container.appendChild(ul);
 }
 
 /**
  * Create review HTML and add it to the webpage.
  */
-createReviewHTML = (review) => {
+createReviewHTML = (review, newReview) => {
   const li = document.createElement('li');
   const name = document.createElement('p');
   name.innerHTML = review.name;
   li.appendChild(name);
 
-  const date = document.createElement('p');
-  date.innerHTML = review.date;
-  li.appendChild(date);
+  const dateElement = document.createElement('p');
+  var date = new Date(review.updatedAt);
+  dateElement.innerHTML = `${date.getDay()}.${date.getMonth()+1}.${date.getFullYear()}`;
+  li.appendChild(dateElement);
 
   const rating = document.createElement('p');
   rating.innerHTML = `Rating: ${review.rating}`;
@@ -150,6 +157,11 @@ createReviewHTML = (review) => {
   const comments = document.createElement('p');
   comments.innerHTML = review.comments;
   li.appendChild(comments);
+
+  //jedna se o nove review a uzivatel je offline, musi se zvyraznit, ze je offline review
+  if(newReview && !navigator.onLine) {
+    li.classList.add('offline');
+  }
 
   return li;
 }
@@ -251,7 +263,8 @@ addReviewToHtml = (review) => {
   if (noREviews) {
     noREviews.parentNode.removeChild(noREviews);
   }
-  review.createdAt = new Date();
+  review.createdAt = new Date().getTime();
+  review.updatedAt = new Date().getTime();
   let reviewList = document.getElementById('reviews-list');
-  reviewList.appendChild(createReviewHTML(review));
+  reviewList.appendChild(createReviewHTML(review, true));
 }

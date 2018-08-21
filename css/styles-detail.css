@@ -72,6 +72,9 @@
   #reviews-list li p {
     margin: 0 0 10px;
   }
+  #reviews-list li.offline {
+    border: 2px solid red;
+  }
   #restaurant-hours {
     margin-left: 5px;
   }
@@ -110,7 +113,11 @@
 .rating { 
   border: none;
 }
-.rating > input { display: none; } 
+.rating > input {
+  width:0;
+  height:0;
+  margin:0!important;
+ } 
 .rating > label:before { 
   margin-right: 5px;
   display: inline-block;

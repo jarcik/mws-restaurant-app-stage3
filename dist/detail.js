@@ -110,38 +110,45 @@ fillRestaurantHoursHTML = (operatingHours = self.restaurant.operating_hours) => 
 /**
  * Create all reviews HTML and add them to the webpage.
  */
-fillReviewsHTML = (reviews = self.restaurant.reviews) => {
-  const container = document.getElementById('reviews-container');
-  const title = document.createElement('h3');
-  title.innerHTML = 'Reviews';
-  container.appendChild(title);
-
-  if (!reviews) {
-    const noReviews = document.createElement('p');
-    noReviews.innerHTML = 'No reviews yet!';
-    noReviews.id = 'noReviews';
-    container.appendChild(noReviews);
-    return;
-  }
-  const ul = document.getElementById('reviews-list');
-  reviews.forEach(review => {
-    ul.appendChild(createReviewHTML(review));
+fillReviewsHTML = () => {
+  DBHelper.fetchReviewsRestaurantId(self.restaurant.id)
+  .then((reviews) => {
+    const container = document.getElementById('reviews-container');
+    const title = document.createElement('h3');
+    title.innerHTML = 'Reviews';
+    container.appendChild(title);
+  
+    if (!reviews) {
+      const noReviews = document.createElement('p');
+      noReviews.innerHTML = 'No reviews yet!';
+      noReviews.id = 'noReviews';
+      container.appendChild(noReviews);
+      return;
+    }
+    const ul = document.getElementById('reviews-list');
+    reviews.forEach(review => {
+      ul.appendChild(createReviewHTML(review, false));
+    });
+    container.appendChild(ul);
+  })
+  .catch((error) => {
+    console.log('error in fetching reviews');
   });
-  container.appendChild(ul);
 }
 
 /**
  * Create review HTML and add it to the webpage.
  */
-createReviewHTML = (review) => {
+createReviewHTML = (review, newReview) => {
   const li = document.createElement('li');
   const name = document.createElement('p');
   name.innerHTML = review.name;
   li.appendChild(name);
 
-  const date = document.createElement('p');
-  date.innerHTML = review.date;
-  li.appendChild(date);
+  const dateElement = document.createElement('p');
+  var date = new Date(review.updatedAt);
+  dateElement.innerHTML = `${date.getDay()}.${date.getMonth()+1}.${date.getFullYear()}`;
+  li.appendChild(dateElement);
 
   const rating = document.createElement('p');
   rating.innerHTML = `Rating: ${review.rating}`;
@@ -150,6 +157,11 @@ createReviewHTML = (review) => {
   const comments = document.createElement('p');
   comments.innerHTML = review.comments;
   li.appendChild(comments);
+
+  //jedna se o nove review a uzivatel je offline, musi se zvyraznit, ze je offline review
+  if(newReview && !navigator.onLine) {
+    li.classList.add('offline');
+  }
 
   return li;
 }
@@ -251,9 +263,10 @@ addReviewToHtml = (review) => {
   if (noREviews) {
     noREviews.parentNode.removeChild(noREviews);
   }
-  review.createdAt = new Date();
+  review.createdAt = new Date().getTime();
+  review.updatedAt = new Date().getTime();
   let reviewList = document.getElementById('reviews-list');
-  reviewList.appendChild(createReviewHTML(review));
+  reviewList.appendChild(createReviewHTML(review, true));
 }
 //name of the database name
 const dbName = 'restaurants';
@@ -294,6 +307,8 @@ class DBHelper {
     //opening db
     return idb.open(dbName, 1, (db) => {
       db.createObjectStore(storeName, {keyPath:'id'});
+      var reviewsStore = db.createObjectStore(reviewsStoreName, {keyPath:'id', autoIncrement: true});
+      reviewsStore.createIndex('restaurant_id', 'restaurant_id');
     });
   }
 
@@ -519,26 +534,56 @@ class DBHelper {
    * Fetch reviews to the restaurant
    */
   static fetchReviewsRestaurantId(id) {
+    // let xhr = new XMLHttpRequest();
+    // xhr.open('GET', DBHelper.API_URL_BASE+'reviews/?restaurant_id='+id);
+    // xhr.onload = () => {
+    //   if (xhr.status === 200) { // Got a success response from server!
+    //     const reviews = JSON.parse(xhr.responseText);
+    //     return DBHelper.dbPromise.then(db => {
+    //       const tx = db.transaction(reviewsStoreName, 'readwrite');
+    //       const store = tx.objectStore(reviewsStoreName);
+    //       if(Array.isArray(reviews)) {
+    //         reviews.forEach((review) => {
+    //           store.put(review);
+    //         });
+    //       } else {
+    //         store.put(reviews);
+    //       }
+    //     });
+    //     return Promise.resolve(reviews);
+    //   } else { // Oops!. Got an error from server.
+    //     const error = (`Request failed. Returned status of ${xhr.status}`);
+    //     return DBHelper.dbPromise.then(db => {        
+    //       const tx = db.transaction(reviewsStoreName, 'readwrite');
+    //       const store = tx.objectStore(reviewsStoreName);
+    //       const indexId = store.index(dbName);
+    //       return indexId.getAll(id);
+    //     }).then((storedREviews) => {
+    //       return Promise.resolve(storedREviews);
+    //     })
+    //   }              
+    // };
+    // xhr.send();
+
     return fetch(DBHelper.API_URL_BASE+'reviews/?restaurant_id='+id)
     .then((response) => {
-      response.json();
-    })
-    .then((reviews) => {
-      DBHelper.dbPromise.then(db => {
-        const tx = db.transaction(dbName, 'readwrite');
-        const store = tx.objectStore(reviewsStoreName);
-        if(Array.isArray(reviews)) {
-          reviews.forEach((review) => {
-            store.put(review);
-          });
-        } else {
-          store.put(reviews);
-        }
-      });
-      return Promise.resolve(reviews);
+      return response.json().then((data) => {
+        return DBHelper.dbPromise.then(db => {
+          const tx = db.transaction(reviewsStoreName, 'readwrite');
+          const store = tx.objectStore(reviewsStoreName);
+          if(Array.isArray(data)) {
+            data.forEach((review) => {
+              store.put(review);
+            });
+          } else {
+            store.put(data);
+          }
+          return Promise.resolve(data);
+        });
+      });      
     }).catch((error) => {
       return DBHelper.dbPromise.then(db => {        
-        const tx = db.transaction(dbName, 'readwrite');
+        const tx = db.transaction(reviewsStoreName, 'readwrite');
         const store = tx.objectStore(reviewsStoreName);
         const indexId = store.index(dbName);
         return indexId.getAll(id);
@@ -567,9 +612,15 @@ class DBHelper {
     localStorage.setItem(offline_review_key, JSON.stringify(review));
     window.addEventListener('online', (event) => {
       let offline_review = JSON.parse(localStorage.getItem(offline_review_key));
-      if(!offline_review) {
+      if(offline_review) {
         DBHelper.addReviewToServer(offline_review);
         localStorage.removeItem(offline_review_key);
+        var offlineItems = document.getElementById('reviews-list').getElementsByClassName('offline');
+        if(offlineItems) {
+          for (var i = 0; i < offlineItems.length; i++) {
+            offlineItems[i].classList.remove('offline');
+          }
+        }
       }
     });
   }
@@ -589,4 +640,5 @@ class DBHelper {
       console.log('error in posting online review');
     });
   }
+
 }
