@@ -245,10 +245,11 @@ getParameterByName = (name, url) => {
   if(errorHead) {
     errorHead.parentNode.removeChild(errorHead);
   }
-  let review = {restaurant_id: id, name: author.value, comments: comment.value, rating: rating, };
+  let review = {restaurant_id: parseInt(id), name: author.value, comments: comment.value, rating: rating, };
   console.log(review);
 
   DBHelper.addReviewToServer(review);
+  DBHelper.addReviewToIDB(review);  
   addReviewToHtml(review);
 
   document.getElementById('add-review-form').reset();
@@ -564,33 +565,43 @@ class DBHelper {
     //   }              
     // };
     // xhr.send();
-
-    return fetch(DBHelper.API_URL_BASE+'reviews/?restaurant_id='+id)
-    .then((response) => {
-      return response.json().then((data) => {
-        return DBHelper.dbPromise.then(db => {
+    if(navigator.onLine) {
+        return fetch(DBHelper.API_URL_BASE+'reviews/?restaurant_id='+id)
+      .then((response) => {
+        return response.json().then((data) => {
+          return DBHelper.dbPromise.then(db => {
+            const tx = db.transaction(reviewsStoreName, 'readwrite');
+            const store = tx.objectStore(reviewsStoreName);
+            if(Array.isArray(data)) {
+              data.forEach((review) => {
+                store.put(review);
+              });
+            } else {
+              store.put(data);
+            }
+            return Promise.resolve(data);
+          });
+        });      
+      }).catch((error) => {
+        return DBHelper.dbPromise.then(db => {        
           const tx = db.transaction(reviewsStoreName, 'readwrite');
           const store = tx.objectStore(reviewsStoreName);
-          if(Array.isArray(data)) {
-            data.forEach((review) => {
-              store.put(review);
-            });
-          } else {
-            store.put(data);
-          }
-          return Promise.resolve(data);
-        });
-      });      
-    }).catch((error) => {
+          const indexId = store.index('restaurant_id');
+          return indexId.getAll(id);
+        }).then((storedREviews) => {
+          return Promise.resolve(storedREviews);
+        })
+      });
+    } else {
       return DBHelper.dbPromise.then(db => {        
         const tx = db.transaction(reviewsStoreName, 'readwrite');
         const store = tx.objectStore(reviewsStoreName);
-        const indexId = store.index(dbName);
+        const indexId = store.index('restaurant_id');
         return indexId.getAll(id);
       }).then((storedREviews) => {
         return Promise.resolve(storedREviews);
       })
-    });
+    }    
   }
 
   /**
@@ -602,6 +613,18 @@ class DBHelper {
     } else {
       DBHelper.offlineAddReview(review);
     }
+  }
+
+  /**
+   * Reporting review to idb
+   */
+  static addReviewToIDB(review) {
+    //put to indexdb
+    DBHelper.dbPromise.then(db => {
+      const tx = db.transaction(reviewsStoreName, 'readwrite');
+      const store = tx.objectStore(reviewsStoreName);
+      store.put(review);      
+    });
   }
 
   /**
@@ -638,6 +661,7 @@ class DBHelper {
       return response;
     }).catch((error) => {
       console.log('error in posting online review');
+      console.log(error);
     });
   }
 

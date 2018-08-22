@@ -245,10 +245,11 @@ getParameterByName = (name, url) => {
   if(errorHead) {
     errorHead.parentNode.removeChild(errorHead);
   }
-  let review = {restaurant_id: id, name: author.value, comments: comment.value, rating: rating, };
+  let review = {restaurant_id: parseInt(id), name: author.value, comments: comment.value, rating: rating, };
   console.log(review);
 
   DBHelper.addReviewToServer(review);
+  DBHelper.addReviewToIDB(review);  
   addReviewToHtml(review);
 
   document.getElementById('add-review-form').reset();
